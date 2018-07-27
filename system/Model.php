@@ -147,5 +147,14 @@ class Model
         }
     }
 
+    /**
+    * Conta os registros da tabela
+    * @param  string $column Coluna para contagem
+    */
+    public function count($column = 'id') {
+        $sql = $this->db->query("SELECT $column FROM ".$this->table);            
+        return $sql->rowCount();
+    }    
+
 
 }
