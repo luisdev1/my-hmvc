@@ -1,197 +1,194 @@
-<?php 
+<?php
 
 /**
  * Classe que fornece as funções básicas aos modelos do sitema
  * @author Luis Eduardo <luisdesenvolvedor@gmail.com>
  */
-class Model {
+class Model
+{
 
-	//Objeto DB
-	protected $db;
+    //Objeto DB
+    protected $db;
+    //Tabelas relacionadas ao model, sendo uma primária outra secundária
+    protected $table = array();
+    //Quantidade de linhas no retorno (afetadas)
+    private $row = 0;
+    //Resultado QUERY
+    private $result = array();
 
-	//Tabelas relacionadas ao model, sendo uma primária outra secundária
-	protected $table = array();
+    /**
+     * Inicializa o objeto de DB a partir da conexão global
+     */
+    public function __construct()
+    {
+        $this->db = DB::getConn();
+    }
 
-	//Quantidade de linhas no retorno (afetadas)
-	private $row = 0;
+    /**
+     * Retorna a quantidade de linhas afetadas pela QUERY
+     * @return int Quantidade de linhas
+     */
+    public function getRowCount()
+    {
+        return $this->row;
+    }
 
-	//Resultado QUERY
-	private $result = array();	
+    /**
+     * Retorna o resultado da QUERY
+     * @return array Resultado da QUERY
+     */
+    public function getResult()
+    {
+        return $this->result;
+    }
 
-	/**
-	 * Inicializa o objeto de DB a partir da conexão global
-	 */
-	public function __construct() {
-		global $db;
-		$this->db = $db;
-	}
+    /**
+     * Faz a inserção de novos dados na tabela primária
+     * @param  array $columns Colunas que irá receber os valores ['coluna1', 'coluna2']
+     * @return boolean TRUE ou FALSE
+     */
+    public function insert(array $columns)
+    {
+        if (!empty($this->table[0]) && (is_array($columns)) && count($columns) > 0) {
+            $data = array();
+            foreach (array_keys($columns) as $value) {
+                $data[] = ":" . ($value) . "";
+            }
+            $sql = "INSERT INTO " . $this->table[0] . "(" . implode(', ', array_keys($columns)) . ") VALUES (" . implode(', ', $data) . ")";
 
-	/**
-	 * Retorna a quantidade de linhas afetadas pela QUERY
-	 * @return int Quantidade de linhas
-	 */
-	public function getRowCount(){
-		return $this->row;
-	}
+            $sql = $this->db->prepare($sql);
 
-	/**
-	 * Retorna o resultado da QUERY
-	 * @return array Resultado da QUERY
-	 */
-	public function getResult(){
-		return $this->result;
-	}
+            for ($i = 0; $i < count($data); $i++) {
+                $sql->bindValue($data[$i], trim(addslashes(array_values($columns)[$i])));
+            }
 
-	/**
-	 * Faz a inserção de novos dados na tabela primária
-	 * @param  array $columns Colunas que irá receber os valores ['coluna1', 'coluna2']
-	 * @return boolean TRUE ou FALSE
-	 */
-	public function insert(array $columns){
-		if(!empty($this->table[0]) && (is_array($columns)) && count($columns) > 0){
-			$data = array();
-			foreach(array_keys($columns) as $value){
-				$data[] = ":".($value)."";
-			} 
-			$sql = "INSERT INTO " .$this->table[0] ."(".implode(', ', array_keys($columns)).") VALUES (".implode(', ', $data).")";
+            return $sql->execute();
+        }
+    }
 
-			$sql = $this->db->prepare($sql);
+    /**
+     * Atualiza dados da tabela primária
+     * @param  array $columns     Colunas a serem alteradas
+     * @param  array  $where      Cláusula WHERE ['id' => 1, 'name' => 'test']
+     * @param  string $where_cond Condição da cláusula WHERE
+     * @return boolean TRUE ou FALSE
+     */
+    public function update(array $columns, array $where = array(), string $where_cond = 'AND')
+    {
 
-			for($i = 0; $i < count($data); $i++){
-				$sql->bindValue($data[$i], trim(addslashes(array_values($columns)[$i])));
-			}
+        if (!empty($this->table[0]) && count($columns) > 0) {
+            $update = array();
+            foreach ($columns as $key => $value) {
+                $update[] = $key . ' = ' . ':' . $key;
+            }
 
-			return $sql->execute();
-		}
-		
-	}
+            $sql = "UPDATE " . $this->table[0] . " SET " . implode(', ', $update);
 
-	/**
-	 * Atualiza dados da tabela primária
-	 * @param  array $columns     Colunas a serem alteradas
-	 * @param  array  $where      Cláusula WHERE ['id' => 1, 'name' => 'test']
-	 * @param  string $where_cond Condição da cláusula WHERE
-	 * @return boolean TRUE ou FALSE
-	 */
-	public function update(array $columns, array $where = array(), string $where_cond = 'AND'){
+            if (count($where) > 0) {
+                $data = array();
+                foreach ($where as $key => $value) {
+                    $data[] = $key . ' = ' . ":" . $key;
+                }
+                $sql .= " WHERE " . implode(' ' . $where_cond . ' ', $data);
+            }
 
-		if(!empty($this->table[0]) && count($columns) > 0){
-			$update = array();
-			foreach($columns as $key => $value){
-				$update[] = $key . ' = ' . ':'.$key;
-			}
+            $sql = $this->db->prepare($sql);
 
-			$sql = "UPDATE " .$this->table[0] ." SET ".implode(', ', $update);
+            for ($i = 0; $i < count($update); $i++) {
+                $sql->bindValue(':' . array_keys($columns)[$i], trim(addslashes(array_values($columns)[$i])));
+            }
 
-			if(count($where) > 0){
-				$data = array();
-				foreach ($where as $key => $value) {
-					$data[] = $key .' = '. ":".$key;
-				}				
-				$sql .= " WHERE ".implode(' '.$where_cond.' ', $data);
-			}
+            for ($j = 0; $j < count($data); $j++) {
+                $sql->bindValue(':' . array_keys($where)[$j], trim(addslashes(array_values($where)[$j])));
+            }
 
-			$sql = $this->db->prepare($sql);
+            return $sql->execute();
+        }
+    }
 
-			for($i = 0; $i < count($update); $i++){
-				$sql->bindValue(':'.array_keys($columns)[$i], trim(addslashes(array_values($columns)[$i])));
-			}			
+    /**
+     * Seleciona dados da tabela primária
+     * @param  mixed $columns     Colunas a serem selecionadas
+     * @param  array  $where      Cláusula WHERE ['id' => 1, 'name' => 'test']
+     * @param  string $where_cond Condição da cláusula WHERE
+     */
+    public function select($columns = '*', array $where = array(), string $where_cond = 'AND')
+    {
 
-			for($j = 0; $j < count($data); $j++){
-				$sql->bindValue(':'.array_keys($where)[$j], trim(addslashes(array_values($where)[$j])));
-			}
+        if (!empty($this->table[0])) {
+            if (is_array($columns) && count($columns) > 0) {
+                $columns = implode(", ", $columns);
+            } else {
+                $columns = '*';
+            }
 
-			return $sql->execute();
-		}
+            $sql = "SELECT " . ($columns) . " FROM " . $this->table[0];
 
-	}
+            $data = array();
 
+            if (count($where) > 0) {
+                foreach ($where as $key => $value) {
+                    $data[] = $key . ' = ' . ":" . $key;
+                }
+                $sql .= " WHERE " . implode(' ' . $where_cond . ' ', $data);
+            }
 
-	/**
-	 * Seleciona dados da tabela primária
-	 * @param  mixed $columns     Colunas a serem selecionadas 
-	 * @param  array  $where      Cláusula WHERE ['id' => 1, 'name' => 'test']
-	 * @param  string $where_cond Condição da cláusula WHERE
-	 */
-	public function select($columns = '*', array $where = array(), string $where_cond = 'AND'){
+            $sql = $this->db->prepare($sql);
 
-		if(!empty($this->table[0])){
-			if(is_array($columns) && count($columns) > 0){
-				$columns = implode(", ", $columns);
-			} else {
-				$columns = '*';
-			}
+            for ($j = 0; $j < count($data); $j++) {
+                $sql->bindValue(':' . array_keys($where)[$j], trim(addslashes(array_values($where)[$j])));
+            }
 
-			$sql = "SELECT ".($columns)." FROM ".$this->table[0];
+            $sql->execute();
 
-			$data = array();
+            $this->row = $sql->rowCount();
 
-			if(count($where) > 0){				
-				foreach ($where as $key => $value) {
-					$data[] = $key .' = '. ":".$key;
-				}				
-				$sql .= " WHERE ".implode(' '.$where_cond.' ', $data);
-			}
+            $this->result = $sql->fetchAll();
+        }
+    }
 
-			$sql = $this->db->prepare($sql);
+    /**
+     * Seleciona dados da relação entre a tablea primária e secundária
+     * @param  array  $on             Cláusula ON
+     * @param  string $columns        Colunas a serem selecionadas
+     * @param  string $direction_join Tipo de JOIN a ser utilizada [LEFT, RIGHT, INNER]
+     * @param  string $cond           Condição da cláusula ON
+     */
+    public function selectJoin(array $on = array(), $columns = '*', string $direction_join = 'INNER', string $cond = 'AND')
+    {
+        if (count($this->table) > 0) {
+            if (is_array($columns) && count($columns) > 0) {
+                $columns = implode(", ", $columns);
+            } else {
+                $columns = '*';
+            }
 
-			for($j = 0; $j < count($data); $j++){
-				$sql->bindValue(':'.array_keys($where)[$j], trim(addslashes(array_values($where)[$j])));
-			}
+            if (is_array($on) && count($on) > 0) {
+                $data = array();
+                foreach ($on as $key => $value) {
+                    if (strpos($value, ':') == 0) {
+                        $value = substr($value, 1, mb_strlen($value, 'UTF-8'));
+                    }
+                    $data[] = $key . ' = ' . $value;
+                }
 
-			$sql->execute();
-			
-			$this->row = $sql->rowCount();
+                $sql = "SELECT " . ($columns) . " FROM " . $this->table[0] . " " . $direction_join . " JOIN " . $this->table[1] . " ON " . implode(" " . $cond . " ", $data);
+            }
 
-			$this->result = $sql->fetchAll(PDO::FETCH_ASSOC);
+            $sql = $this->db->prepare($sql);
 
-		}
+            for ($j = 0; $j < count($data); $j++) {
+                if (strpos(array_values($on)[$j], ':') == 0) {
+                    $sql->bindValue(':' . array_keys($on)[$j], trim(addslashes(array_values($on)[$j])));
+                }
+            }
 
-	}
+            $sql->execute();
 
-	/**
-	 * Seleciona dados da relação entre a tablea primária e secundária
-	 * @param  array  $on             Cláusula ON
-	 * @param  string $columns        Colunas a serem selecionadas 
-	 * @param  string $direction_join Tipo de JOIN a ser utilizada [LEFT, RIGHT, INNER]
-	 * @param  string $cond           Condição da cláusula ON	 
-	 */
-	public function selectJoin(array $on = array(), $columns = '*', string $direction_join = 'INNER',  string $cond = 'AND'){
-		if(count($this->table) > 0){
-			if(is_array($columns) && count($columns) > 0){
-				$columns = implode(", ", $columns);
-			} else {
-				$columns = '*';
-			}
+            $this->row = $sql->rowCount();
 
-			if(is_array($on) && count($on) > 0){
-				$data = array();
-				foreach ($on as $key => $value) {
-					if(strpos($value, ':') == 0) {
-						$value = substr($value, 1, mb_strlen($value, 'UTF-8'));
-					}
-					$data[] = $key . ' = ' .$value;
-				}
-
-				$sql = "SELECT ".($columns)." FROM ".$this->table[0] . " ".$direction_join." JOIN ". $this->table[1] ." ON ". implode(" ".$cond." ", $data);
-			}
-
-			$sql = $this->db->prepare($sql);
-
-			for($j = 0; $j < count($data); $j++){
-				if(strpos(array_values($on)[$j], ':') == 0) {				
-					$sql->bindValue(':'.array_keys($on)[$j], trim(addslashes(array_values($on)[$j])));
-				}
-			}
-
-			$sql->execute();
-			
-			$this->row = $sql->rowCount();
-
-			$this->result = $sql->fetchAll(PDO::FETCH_ASSOC);					
-
-		}
-
-	}
+            $this->result = $sql->fetchAll();
+        }
+    }
 
 }
