@@ -176,8 +176,6 @@ class Model {
 				$sql = "SELECT ".($columns)." FROM ".$this->table[0] . " ".$direction_join." JOIN ". $this->table[1] ." ON ". implode(" ".$cond." ", $data);
 			}
 
-			echo $sql;exit;
-
 			$sql = $this->db->prepare($sql);
 
 			for($j = 0; $j < count($data); $j++){
