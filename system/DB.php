@@ -21,7 +21,6 @@ class DB
         try {
 
             if (self::$conn == null) {
-                global $db;
                 global $config;
 
                 $options = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8'];
